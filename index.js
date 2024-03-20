@@ -13,7 +13,7 @@ async function main() {
 
         const parsedText = await fetchBoardContent(url);
 
-        const resolvedPath = getResolvedPath(file,parsedText)
+        const resolvedPath = getResolvedPath(file, parsedText)
         await writeToFile(resolvedPath, parsedText);
 
     } catch (error) {
@@ -31,58 +31,80 @@ async function writeToFile(resolvedPath, parsedText) {
     process.exit();
 }
 
-async function fetchBoardContent(url){
+async function fetchBoardContent(url) {
     const browser = await chromium.launch();
     const page = await browser.newPage();
 
-    await page.goto(url);
-    await page.waitForSelector('.easy-card-list');
+    try {
+        await page.goto(url);
+        await page.waitForSelector('.easy-card-list');
 
-    const boardTitle = await page.$eval('.board-name', (node) =>
-      node.innerText.trim()
-    );
+        const boardTitle = await getBoardTitle(page);
+        if (!boardTitle) {
+            throw new Error('Board title does not exist. Please check if provided URL is correct.');
+        }
 
-    if (!boardTitle) {
-      throw new Error('Board title does not exist. Please check if provided URL is correct.');
+        const columns = await getColumns(page);
+
+        const parsedText = parseColumns(boardTitle, columns);
+        return parsedText;
+    } catch (error) {
+        console.error('An error occurred while fetching board content:', error);
+        throw error;
     }
+}
 
+async function getBoardTitle(page) {
+    return await page.$eval('.board-name', (node) => node.innerText.trim());
+}
+
+async function getColumns(page) {
+    return await page.$$('.easy-card-list');
+}
+
+async function parseColumns(boardTitle, columns) {
     let parsedText = boardTitle + '\n\n';
-
-    const columns = await page.$$('.easy-card-list');
-
     for (let i = 0; i < columns.length; i++) {
-      const columnTitle = await columns[i].$eval('.column-header', (node) =>
-        node.innerText.trim()
-      );
-
-      const messages = await columns[i].$$('.easy-board-front');
-      if (messages.length) {
-        parsedText += columnTitle + '\n';
-      }
-      for (let i = 0; i < messages.length; i++) {
-        const messageText = await messages[i].$eval(
-          '.easy-card-main .easy-card-main-content .text',
-          (node) => node.innerText.trim()
-        );
-        const votes = await messages[i].$eval(
-          '.easy-card-votes-container .easy-badge-votes',
-          (node) => node.innerText.trim()
-        );
-        parsedText += `- ${messageText} (${votes})` + '\n';
-      }
-
-      if (messages.length) {
-        parsedText += '\n';
-      }
+        const columnTitle = getColumnTitle(columns[i]);
+        const messages = await getMessages(columns[i]);
+        parsedText += await parseMessages(columnTitle, messages);
     }
-
     return parsedText;
 }
 
-function getResolvedPath(filePath, parsedText){
+
+function getColumnTitle(column) {
+    return column.$eval('.column-header', (node) => node.innerText.trim());
+}
+
+async function getMessages(column) {
+    return await column.$$('.easy-board-front');
+}
+
+async function parseMessages(columnTitle, messages) {
+    let parsedText = columnTitle + '\n';
+    for (let i = 0; i < messages.length; i++) {
+        const messageText = await getMessageText(messages[i]);
+        const votes = await getMessageVotes(messages[i]);
+        parsedText += `- ${messageText} (${votes})\n`;
+    }
+    parsedText += '\n';
+    return parsedText;
+}
+
+
+function getMessageText(message) {
+    return message.$eval('.easy-card-main .easy-card-main-content .text', (node) => node.innerText.trim());
+}
+
+function getMessageVotes(message) {
+    return message.$eval('.easy-card-votes-container .easy-badge-votes', (node) => node.innerText.trim());
+}
+
+function getResolvedPath(filePath, parsedText) {
     return path.resolve(
         filePath || `../${parsedText.split("\n")[0].replace("/", "")}.txt`
-      );
+    );
 }
 
 main();
