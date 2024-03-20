@@ -1,6 +1,7 @@
 {
   "name": "funretro-export",
   "version": "1.0.0",
+  "type":"module",
   "description": "CLI tool to easily export Funretro.io retrospective boards using Puppeteer",
   "main": "index.js",
   "scripts": {

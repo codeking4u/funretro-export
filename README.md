@@ -9,10 +9,12 @@
 It's required to have [npm](https://www.npmjs.com/get-npm) installed locally to follow the instructions.
 
 ```shell
-git clone https://github.com/julykaz/funretro-export.git
+git clone https://github.com/codeking4u/funretro-export.git
 cd funretro-export
 npm install
-npm start -- "http://funretro.io/board..." "../exported-file.txt"
+npm start -- "http://funretro.io/board..."
+
+The output file will be created in folder `funretro-export/output-files`
 ```
 
 ## Issues
@@ -27,10 +29,6 @@ then execute this command:
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true npm i -D playwright
 ```
 
-## TODO
-
-- Export card comments
-- More export options (PDF, CSV)
 
 ## Licensing
 
