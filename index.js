@@ -1,16 +1,37 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 const { chromium } = require('playwright');
 const { exit } = require('process');
 
 async function main() {
-  try {
-    const [url, file] = process.argv.slice(2);
+    try {
+        const [url, file] = process.argv.slice(2);
 
-    if (!url) {
-      throw new Error('Please provide a URL as the first argument.');
+        if (!url) {
+            throw new Error('Please provide a URL as the first argument.');
+        }
+
+        const parsedText = await fetchBoardContent(url);
+
+        const resolvedPath = getResolvedPath(file,parsedText)
+        await writeToFile(resolvedPath, parsedText);
+
+    } catch (error) {
+        console.error('An error occured: ', error.message);
     }
+}
 
+async function writeToFile(resolvedPath, parsedText) {
+    try {
+        await fs.writeFile(resolvedPath, parsedText);
+        console.log(`Successfully written to file at: ${resolvedPath}`);
+    } catch (error) {
+        console.error('Error found while writing to file: ', error.message)
+    }
+    process.exit();
+}
+
+async function fetchBoardContent(url){
     const browser = await chromium.launch();
     const page = await browser.newPage();
 
@@ -54,24 +75,14 @@ async function main() {
         parsedText += '\n';
       }
     }
-    await writeToFile(file, parsedText);
-  } catch (error) {
-    console.error('An error occured: ', error.message);
-  }
+
+    return parsedText;
 }
 
-async function writeToFile(filePath, data) {
-  const resolvedPath = path.resolve(
-    filePath || `../${data.split("\n")[0].replace("/", "")}.txt`
-  );
-  fs.writeFile(resolvedPath, data, (error) => {
-    if (error) {
-      throw error;
-    } else {
-      console.log(`Successfully written to file at: ${resolvedPath}`);
-    }
-    process.exit();
-  });
+function getResolvedPath(filePath, parsedText){
+    return path.resolve(
+        filePath || `../${parsedText.split("\n")[0].replace("/", "")}.txt`
+      );
 }
 
 main();
