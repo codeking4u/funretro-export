@@ -5,7 +5,7 @@ const { exit } = require('process');
 
 async function main() {
     try {
-        const [url, file] = process.argv.slice(2);
+        const [url] = process.argv.slice(2);
 
         if (!url) {
             throw new Error('Please provide a URL as the first argument.');
