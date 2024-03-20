@@ -11,9 +11,9 @@ async function main() {
             throw new Error('Please provide a URL as the first argument.');
         }
 
-        const parsedText = await fetchBoardContent(url);
+        const [parsedText, boardTitleForFilename] = await fetchBoardContent(url);
 
-        const resolvedPath = getResolvedPath(file, parsedText)
+        const resolvedPath = getResolvedPath(boardTitleForFilename, 'csv')
         await writeToFile(resolvedPath, parsedText);
 
     } catch (error) {
@@ -46,8 +46,8 @@ async function fetchBoardContent(url) {
 
         const columns = await getColumns(page);
 
-        const parsedText = parseColumns(boardTitle, columns);
-        return parsedText;
+        const parsedText = await parseColumns(boardTitle, columns);
+        return [parsedText, boardTitle];
     } catch (error) {
         console.error('An error occurred while fetching board content:', error);
         throw error;
@@ -63,35 +63,42 @@ async function getColumns(page) {
 }
 
 async function parseColumns(boardTitle, columns) {
-    let parsedText = boardTitle + '\n\n';
+    let parsedText = '';
+
+    const columnHeadersPromises = columns.map(async (column) => await getColumnTitle(column));
+    const columnHeaders = await Promise.all(columnHeadersPromises);
+    parsedText += columnHeaders.join(',') + '\n';
+
+
     for (let i = 0; i < columns.length; i++) {
-        const columnTitle = getColumnTitle(columns[i]);
         const messages = await getMessages(columns[i]);
-        parsedText += await parseMessages(columnTitle, messages);
+        parsedText += await parseMessages(messages)
+        parsedText += '\n';
     }
+
     return parsedText;
 }
 
+async function parseMessages( messages) {
+  let parsedText = '';
+  for (let i = 0; i < messages.length; i++) {
+      const messageText = await getMessageText(messages[i]);
+      const votes = await getMessageVotes(messages[i]);
+      parsedText += (parseInt(votes) > 0) ? `${messageText},`:','; 
+      
+  }
+  parsedText += '\n';
+  return parsedText;
+}
 
-function getColumnTitle(column) {
+
+async function getColumnTitle(column) {
     return column.$eval('.column-header', (node) => node.innerText.trim());
 }
 
 async function getMessages(column) {
     return await column.$$('.easy-board-front');
 }
-
-async function parseMessages(columnTitle, messages) {
-    let parsedText = columnTitle + '\n';
-    for (let i = 0; i < messages.length; i++) {
-        const messageText = await getMessageText(messages[i]);
-        const votes = await getMessageVotes(messages[i]);
-        parsedText += `- ${messageText} (${votes})\n`;
-    }
-    parsedText += '\n';
-    return parsedText;
-}
-
 
 function getMessageText(message) {
     return message.$eval('.easy-card-main .easy-card-main-content .text', (node) => node.innerText.trim());
@@ -101,10 +108,11 @@ function getMessageVotes(message) {
     return message.$eval('.easy-card-votes-container .easy-badge-votes', (node) => node.innerText.trim());
 }
 
-function getResolvedPath(filePath, parsedText) {
-    return path.resolve(
-        filePath || `../${parsedText.split("\n")[0].replace("/", "")}.txt`
-    );
+function getResolvedPath(filePath, extension) {
+
+    const boardTitle = filePath ? filePath.replace(/\s+/g, '') : 'default-board-name';
+    return path.resolve(`${boardTitle}.${extension}`);
+
 }
 
 main();
