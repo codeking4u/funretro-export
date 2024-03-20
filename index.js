@@ -63,31 +63,41 @@ async function getColumns(page) {
 }
 
 async function parseColumns(boardTitle, columns) {
-    let parsedText = '';
+  let parsedText = '';
 
-    const columnHeadersPromises = columns.map(async (column) => await getColumnTitle(column));
-    const columnHeaders = await Promise.all(columnHeadersPromises);
-    parsedText += columnHeaders.join(',') + '\n';
+  const columnHeadersPromises = columns.map(async (column) => await getColumnTitle(column));
+  const columnHeaders = await Promise.all(columnHeadersPromises);
+  parsedText += columnHeaders.join(',') + '\n';
 
+  const columnMessagesPromises = columns.map(async (column) => await parseMessages(await getMessages(column)));
+  const columnMessages = await Promise.all(columnMessagesPromises);
 
-    for (let i = 0; i < columns.length; i++) {
-        const messages = await getMessages(columns[i]);
-        parsedText += await parseMessages(messages)
-        parsedText += '\n';
-    }
+  const maxRowCount = Math.max(...columnMessages.map(messages => messages.length));
 
-    return parsedText;
+  for (let i = 0; i < maxRowCount; i++) {
+      const rowValues = columns.map((_, index) => {
+          const message = columnMessages[index][i];
+          return message ? message : '';
+      }).join(',');
+      parsedText += `${rowValues}\n`;
+  }
+
+  return parsedText;
 }
 
-async function parseMessages( messages) {
-  let parsedText = '';
+
+
+async function parseMessages(messages) {
+  let parsedText = [];
   for (let i = 0; i < messages.length; i++) {
       const messageText = await getMessageText(messages[i]);
       const votes = await getMessageVotes(messages[i]);
-      parsedText += (parseInt(votes) > 0) ? `${messageText},`:','; 
-      
+      if (parseInt(votes) > 0) {
+          parsedText.push(messageText);
+      }else{
+        parsedText.push('');
+      }
   }
-  parsedText += '\n';
   return parsedText;
 }
 
