@@ -121,7 +121,7 @@ function getMessageVotes(message) {
 function getResolvedPath(filePath, extension) {
 
     const boardTitle = filePath ? filePath.replace(/\s+/g, '') : 'default-board-name';
-    return path.resolve(`${boardTitle}.${extension}`);
+    return path.resolve(`./output-files/${boardTitle}.${extension}`);
 
 }
 
